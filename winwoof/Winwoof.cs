@@ -6,8 +6,6 @@ using System.Threading.Tasks;
 using System.IO;
 using System.Reflection;
 
-// todo: file already exists C:\temp\woof.zip
-
 class Winwoof
 {
 
@@ -217,8 +215,8 @@ class Winwoof
 
         Console.WriteLine("");
 
-        Console.WriteLine("Usage: \nwinwoof <file|directory> [port]");
-        Console.WriteLine("[The path can be relative or absolute]\n");
+        Console.WriteLine("Usage: \n\nwinwoof <file|directory> [port]");
+        Console.WriteLine("> The path can be relative or absolute\n");
         Console.WriteLine("Serves a file or a directory via http on \nyour local ip address.");
 
         Environment.Exit(0);
