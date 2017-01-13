@@ -204,20 +204,23 @@ class Winwoof
     private void printHelpText()
     {
 
-        Console.WriteLine(@"          _                           __ ");
-        Console.WriteLine(@"         (_)                         / _|");
-        Console.WriteLine(@"__      ___ _ ____      _____   ___ | |_ ");
-        Console.WriteLine(@"\ \ /\ / / | '_ \ \ /\ / / _ \ / _ \|  _|");
-        Console.WriteLine(@" \ V  V /| | | | \ V  V / (_) | (_) | |  ");
-        Console.WriteLine(@"  \_/\_/ |_|_| |_|\_/\_/ \___/ \___/|_|  ");
+        Console.WriteLine(@"            _                           __ ");
+        Console.WriteLine(@"           (_)                         / _|");
+        Console.WriteLine(@"  __      ___ _ ____      _____   ___ | |_ ");
+        Console.WriteLine(@"  \ \ /\ / / | '_ \ \ /\ / / _ \ / _ \|  _|");
+        Console.WriteLine(@"   \ V  V /| | | | \ V  V / (_) | (_) | |  ");
+        Console.WriteLine(@"    \_/\_/ |_|_| |_|\_/\_/ \___/ \___/|_|  ");
 
-        Console.WriteLine("\n------------------------------------------");
+        Console.WriteLine("\n----------------------------------------------");
 
         Console.WriteLine("");
 
-        Console.WriteLine("Usage: \n\nwinwoof <file|directory> [port]");
-        Console.WriteLine("> The path can be relative or absolute\n");
-        Console.WriteLine("Serves a file or a directory via http on \nyour local ip address.");
+        Console.WriteLine(" winwoof creates a small and simple webserver \n that can be used to share files or folders \n easily with people on the same network.");
+
+        Console.WriteLine("\n (c) 2017 rbeier\n     https://github.com/rbeier/winwoof");
+
+        Console.WriteLine("\n------------------- Usage -------------------- \n");
+        Console.WriteLine("      winwoof <file|directory> [port]");
 
         Environment.Exit(0);
 
