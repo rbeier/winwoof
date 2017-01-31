@@ -1,237 +1,224 @@
 ﻿using System;
+using System.IO;
+using System.IO.Compression;
 using System.Linq;
 using System.Net;
+using System.Net.Mime;
 using System.Net.Sockets;
-using System.Threading.Tasks;
-using System.IO;
 using System.Reflection;
 
-class Winwoof
+namespace Winwoof
 {
-
-    private string filepath;
-    private string localAddress;
-    private int    port = 1337;
-
-    HttpListener   listener = new HttpListener();
-
-
-    public Winwoof(string[] args)
+    public class Winwoof
     {
+        private readonly string filepath;
+        private readonly string localAddress;
+        private readonly int port = 1337;
+        private readonly HttpListener httpListener = new HttpListener();
 
-        // setup some things
-        this.localAddress = this.getLocalAddress();
-
-        // print help text or change port number
-        switch( args.Length )
+        public Winwoof(string[] args)
         {
+            // setup some things
+            localAddress = GetLocalAddress();
 
-            case 0:
-                this.printHelpText();
-                break;
-
-            case 1:
-                // start processing
-                break;
-
-            case 2:
-                this.port = Int32.Parse(args[1]);
-                break;
-
-            default:
-                this.errorHandler("Wrong number of parameters!");
-                break;
-
-        }
-
-        // get file or dir
-        this.filepath = this.getAbsolutePath(args[0]);
-
-        // start listener
-        listener.Prefixes.Add("http://" + this.localAddress + ":" + this.port + "/");
-        listener.Start();
-
-    }
-
-
-    private string getAbsolutePath(string arg)
-    {
-
-        if ( Directory.Exists(arg) )
-            return this.directoryHandler(arg);
-
-        if ( File.Exists(arg) )
-            return this.fileHandler(arg);
-
-        this.errorHandler("Can't open File or directory!");
-
-        return "";
-
-    }
-    
-
-    private string fileHandler(string file)
-    {
-
-        string path = "";
-
-        if (file.Contains("\\") | file.Contains("/"))
-        {
-
-            // absolute path given
-            path = file;
-
-        }
-        else
-        {
-
-            // filename given, get current path
-            path = Path.GetDirectoryName(Assembly.GetEntryAssembly().Location) + "\\" + file;
-
-        }
-
-        return path;
-
-    }
-
-
-    public string directoryHandler(string dir)
-    {
-
-        string tempZipPath = Path.GetTempPath() + @"woof.zip";
-
-        if (File.Exists(tempZipPath))
-            File.Delete(tempZipPath);
-
-        System.IO.Compression.ZipFile.CreateFromDirectory(dir, tempZipPath);
-
-        return tempZipPath;
-
-    }
-
-
-    private void serve()
-    {
-
-        Console.Write("Server is listening on: http://" + this.localAddress + ":" + this.port + "/");
-
-        Task.Factory.StartNew(() =>
-        {
-
-            while ( ! Console.KeyAvailable )
+            // PrintStartupMessage with usage hint in case of malformed input
+            switch (args.Length)
             {
+                case 0:
+                    PrintStartupMessage(true);
+                    Environment.Exit(0);
+                    break;
 
-                HttpListenerContext context = listener.GetContext();
+                case 1:
+                    // start processing
+                    break;
 
-                Task.Factory.StartNew((ctx) =>
-                {
+                case 2:
+                    port = int.Parse(args[1]);
+                    break;
 
-                    WriteFile( (HttpListenerContext) ctx );
+                default:
+                    PrintStartupMessage(true);
+                    ErrorHandler("Wrong number of parameters!");
+                    break;
+            }
+            
+            // get file or dir
+            filepath = GetAbsolutePath(args[0]);
 
-                }, context, TaskCreationOptions.LongRunning);
+            PrintStartupMessage(false);
+        }
 
+        private static void Main(string[] args)
+        {
+            Winwoof winwoof = new Winwoof(args);
+            winwoof.ServeStart();
+            Console.ReadKey();
+            winwoof.ServeStop();
+        }
+
+        private string DirectoryHandler(string dir)
+        {
+            string tempZipPath = Path.GetTempPath() + @"woof.zip";
+
+            if (File.Exists(tempZipPath))
+            {
+                File.Delete(tempZipPath);
             }
 
-            listener.Stop();
+            ZipFile.CreateFromDirectory(dir, tempZipPath);
 
-        }, TaskCreationOptions.LongRunning);
+            return tempZipPath;
+        }
 
-        Console.ReadKey();
-
-    }
-
-
-    private void WriteFile(HttpListenerContext ctx)
-    {
-
-        var response = ctx.Response;
-
-        using ( FileStream fs = File.OpenRead(this.filepath) )
+        private void ErrorHandler(string error)
         {
+            Console.WriteLine(error);
+            Environment.Exit(0);
+        }
 
-            response.AddHeader( "Content-disposition", "attachment; filename=" + Path.GetFileName(this.filepath) );
-            response.ContentLength64 = fs.Length;
-            response.SendChunked     = false;
-            response.ContentType     = System.Net.Mime.MediaTypeNames.Application.Octet;
+        private string FileHandler(string file)
+        {
+            string path;
 
-            byte[] buffer = new byte[64 * 1024];
-
-            int read;
-
-            using (BinaryWriter bw = new BinaryWriter(response.OutputStream))
+            if (file.Contains("\\") | file.Contains("/"))
             {
+                // absolute path given
+                path = file;
+            }
+            else
+            {
+                // filename given, get current path
+                path = Path.GetDirectoryName(Assembly.GetEntryAssembly().Location) + "\\" + file;
+            }
 
-                while ((read = fs.Read(buffer, 0, buffer.Length)) > 0)
+            return path;
+        }
+
+        private string GetAbsolutePath(string arg)
+        {
+            if (Directory.Exists(arg))
+            {
+                return DirectoryHandler(arg);
+            }
+
+            if (File.Exists(arg))
+            {
+                return FileHandler(arg);
+            }
+
+            ErrorHandler("Can't open File or directory!");
+
+            return string.Empty;
+        }
+
+        private string GetLocalAddress()
+        {
+            IPAddress[] addressList = Dns.GetHostEntry(Dns.GetHostName()).AddressList;
+
+            if (addressList == null || !addressList.Any())
+            {
+                ErrorHandler("Could not determine local IP address!");
+            }
+
+            return addressList.First(ip => ip.AddressFamily == AddressFamily.InterNetwork).ToString();
+        }
+
+        private void PrintStartupMessage(bool showUsage)
+        {
+            Console.WriteLine(@"            _                           __ ");
+            Console.WriteLine(@"           (_)                         / _|");
+            Console.WriteLine(@"  __      ___ _ ____      _____   ___ | |_ ");
+            Console.WriteLine(@"  \ \ /\ / / | '_ \ \ /\ / / _ \ / _ \|  _|");
+            Console.WriteLine(@"   \ V  V /| | | | \ V  V / (_) | (_) | |  ");
+            Console.WriteLine(@"    \_/\_/ |_|_| |_|\_/\_/ \___/ \___/|_|  ");
+
+            Console.WriteLine("\n----------------------------------------------");
+
+            Console.WriteLine(string.Empty);
+
+            Console.WriteLine(" winwoof creates a small and simple webserver \n that can be used to share files or folders \n easily with people on the same network.");
+
+            Console.WriteLine("\n (c) 2017 rbeier\n     https://github.com/rbeier/winwoof");
+
+            if (showUsage)
+            {
+                Console.WriteLine("\n------------------- Usage -------------------- \n");
+                Console.WriteLine("      winwoof <file|directory> [port]");
+            }
+        }
+
+        private void ServeRequestAsync(IAsyncResult result)
+        {
+            HttpListener listener = result.AsyncState as HttpListener;
+
+            if (listener == null)
+            {
+                Console.WriteLine("Error processing request!");
+            }
+            else
+            {
+                HttpListenerContext context = listener.EndGetContext(result);
+
+                // start listening for request again
+                listener.BeginGetContext(ServeRequestAsync, listener);
+
+                SendFile(context);
+            }
+        }
+
+        private void ServeStart()
+        {
+            // start listener
+            httpListener.Prefixes.Add($"http://{localAddress}:{port}/");
+            httpListener.Start();
+
+            Console.WriteLine($"\nServer is listening on: http://{localAddress}:{port}/");
+
+            httpListener.BeginGetContext(ServeRequestAsync, httpListener);
+        }
+
+        private void ServeStop()
+        {
+            httpListener.Stop();
+        }
+
+        private void SendFile(HttpListenerContext listenerContext)
+        {
+            IPEndPoint requestEndPoint = listenerContext.Request.RemoteEndPoint;
+
+            if (requestEndPoint != null)
+            {
+                Console.WriteLine($"Serving request from: {requestEndPoint.Address}");
+            }
+
+            HttpListenerResponse response = listenerContext.Response;
+
+            using (FileStream fileStream = File.OpenRead(filepath))
+            {
+                response.AddHeader("Content-disposition", $"attachment; filename={Path.GetFileName(filepath)}");
+                response.ContentLength64 = fileStream.Length;
+                response.SendChunked = false;
+                response.ContentType = MediaTypeNames.Application.Octet;
+
+                byte[] buffer = new byte[64 * 1024];
+
+                using (BinaryWriter binaryWriter = new BinaryWriter(response.OutputStream))
                 {
-                    bw.Write(buffer, 0, read);
-                    bw.Flush();
+                    int read;
+                    while ((read = fileStream.Read(buffer, 0, buffer.Length)) > 0)
+                    {
+                        binaryWriter.Write(buffer, 0, read);
+                        binaryWriter.Flush();
+                    }
+
+                    binaryWriter.Close();
                 }
 
-                bw.Close();
-
+                response.StatusCode = (int)HttpStatusCode.OK;
+                response.StatusDescription = "OK";
+                response.OutputStream.Close();
             }
-
-            response.StatusCode = (int) HttpStatusCode.OK;
-            response.StatusDescription = "OK";
-            response.OutputStream.Close();
-
         }
-
     }
-
-
-    private String getLocalAddress()
-    {
-
-        IPHostEntry host = Dns.GetHostEntry(Dns.GetHostName());
-
-        return host.AddressList
-                   .FirstOrDefault(ip => ip.AddressFamily == AddressFamily.InterNetwork).ToString();
-
-    }
-
-
-    private void errorHandler(string error)
-    {
-
-        Console.WriteLine(error);
-
-        Environment.Exit(0);
-
-    }
-
-
-    private void printHelpText()
-    {
-
-        Console.WriteLine(@"            _                           __ ");
-        Console.WriteLine(@"           (_)                         / _|");
-        Console.WriteLine(@"  __      ___ _ ____      _____   ___ | |_ ");
-        Console.WriteLine(@"  \ \ /\ / / | '_ \ \ /\ / / _ \ / _ \|  _|");
-        Console.WriteLine(@"   \ V  V /| | | | \ V  V / (_) | (_) | |  ");
-        Console.WriteLine(@"    \_/\_/ |_|_| |_|\_/\_/ \___/ \___/|_|  ");
-
-        Console.WriteLine("\n----------------------------------------------");
-
-        Console.WriteLine("");
-
-        Console.WriteLine(" winwoof creates a small and simple webserver \n that can be used to share files or folders \n easily with people on the same network.");
-
-        Console.WriteLine("\n (c) 2017 rbeier\n     https://github.com/rbeier/winwoof");
-
-        Console.WriteLine("\n------------------- Usage -------------------- \n");
-        Console.WriteLine("      winwoof <file|directory> [port]");
-
-        Environment.Exit(0);
-
-    }
-
-
-    static void Main(string[] args)
-    {
-
-        new Winwoof(args).serve();
-
-    }
-
 }
