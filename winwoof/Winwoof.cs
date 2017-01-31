@@ -34,7 +34,14 @@ namespace Winwoof
                     break;
 
                 case 2:
-                    port = int.Parse(args[1]);
+                    try
+                    {
+                        port = int.Parse(args[1]);
+                    }
+                    catch ( Exception e )
+                    {
+                        ErrorHandler("The Port must be a number!");
+                    }
                     break;
 
                 default:
@@ -173,7 +180,7 @@ namespace Winwoof
             httpListener.Prefixes.Add($"http://{localAddress}:{port}/");
             httpListener.Start();
 
-            Console.WriteLine($"\nServer is listening on: http://{localAddress}:{port}/");
+            Console.WriteLine($"\nServer is now listening on: http://{localAddress}:{port}/\n");
 
             httpListener.BeginGetContext(ServeRequestAsync, httpListener);
         }
